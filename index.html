@@ -24,6 +24,14 @@
     </script>
     <!-- /Google tag -->
 
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NSD62NZM');</script>
+    <!-- End Google Tag Manager -->
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="DocuSpace — облачный редактор документов для учебы и бизнеса. Безопасно, удобно и с совместной работой.">
@@ -187,6 +195,11 @@
     </style>
 </head>
 <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NSD62NZM"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
     <header>
         <div class="container header-inner">
             <div class="logo"><a href="#home"><span class="logo-text">DocuSpace</span></a></div>
@@ -513,7 +526,15 @@
         
         function checkAuthStatus() { const saved = localStorage.getItem('docuspace_user'); if(saved) { isAuthenticated = true; currentUser = JSON.parse(saved); showDashboard(); } else hideDashboard(); updateAuthSection(); }
         
-        function googleSignIn() { const mockUser = { name: "Александр Самосюк", email: "alex.samosyuk@gmail.com", initials: "АС" }; localStorage.setItem('docuspace_user', JSON.stringify(mockUser)); checkAuthStatus(); closeAuthModal(); showNotification(currentLang === 'ru' ? 'Вы успешно вошли в систему!' : 'You have successfully signed in!'); }
+        function googleSignIn() {
+            const mockUser = { name: 'Александр Самосюк', email: 'alex.samosyuk@gmail.com', initials: 'АС' };
+            localStorage.setItem('docuspace_user', JSON.stringify(mockUser));
+            // Событие: регистрация / вход через Google
+            ym(108984175, 'reachGoal', 'registration_google');
+            gtag('event', 'sign_up', { method: 'Google' });
+            checkAuthStatus(); closeAuthModal();
+            showNotification(currentLang === 'ru' ? 'Вы успешно вошли в систему!' : 'You have successfully signed in!');
+        }
         
         function emailSignIn() {
             const emailEl = document.getElementById('authEmail');
@@ -526,6 +547,9 @@
             localStorage.setItem('docuspace_user', JSON.stringify(user));
             checkAuthStatus();
             closeAuthModal();
+            // Событие: регистрация / вход через email
+            ym(108984175, 'reachGoal', 'registration_email');
+            gtag('event', 'sign_up', { method: 'Email' });
             showNotification(currentLang === 'ru' ? 'Вы успешно вошли в систему!' : 'You have successfully signed in!');
             return false;
         }
@@ -536,7 +560,12 @@
         function updateUserStats() { document.getElementById('statDocuments').innerText = Object.keys(documents).length; document.getElementById('statShared').innerText = Math.floor(Math.random() * 8) + 2; const storageUsed = (JSON.stringify(documents).length / 1024 / 1024).toFixed(1); document.getElementById('statStorage').innerText = storageUsed || '0'; }
         function openAuthModal() { document.getElementById('authModal').classList.add('show'); }
         function closeAuthModal() { document.getElementById('authModal').classList.remove('show'); }
-        function handleFreeTrial() { if(isAuthenticated) openEditor(); else openAuthModal(); }
+        function handleFreeTrial() {
+            // Событие: клик на 'Попробовать бесплатно'
+            ym(108984175, 'reachGoal', 'free_trial_click');
+            gtag('event', 'free_trial_click', { event_category: 'engagement', event_label: 'hero_button' });
+            if(isAuthenticated) openEditor(); else openAuthModal();
+        }
         function openEditor() { if(!isAuthenticated) { openAuthModal(); return; } document.getElementById('editor').classList.add('show'); document.body.style.overflow = 'hidden'; loadDocumentsList(); if(!currentDocId) createNewDocument(); }
         function closeEditor() { document.getElementById('editor').classList.remove('show'); document.body.style.overflow = 'auto'; saveCurrentDocument(); }
         function formatDoc(command, value) { document.execCommand(command, false, value); }
@@ -574,18 +603,44 @@
         function exportToPDF() { window.print(); showNotification(currentLang === 'ru' ? 'Откройте печать и выберите "Сохранить как PDF"' : 'Open print and select "Save as PDF"'); }
         function downloadDoc() { const content = document.getElementById('documentContent').innerHTML; const blob = new Blob([`<html><head><meta charset="UTF-8"></head><body>${content}</body></html>`], { type: 'application/msword' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${document.getElementById('documentName').value}.doc`; a.click(); URL.revokeObjectURL(a.href); showNotification(currentLang === 'ru' ? 'Документ скачан' : 'Document downloaded'); }
         
-        function openPurchaseModal(name, price) { if(!isAuthenticated) { openAuthModal(); return; } currentTariff = { name, price }; document.getElementById('purchaseModalTitle').innerHTML = `${currentLang === 'ru' ? 'Оформление подписки' : 'Subscription checkout'} ${name}`; document.getElementById('usersCountGroup').style.display = name === 'Team' ? 'block' : 'none'; updateTotalPrice(); document.getElementById('purchaseModal').classList.add('show'); }
+        function openPurchaseModal(name, price) {
+            if(!isAuthenticated) { openAuthModal(); return; }
+            // Событие: просмотр тарифа / намерение купить
+            ym(108984175, 'reachGoal', 'tariff_view_' + name.toLowerCase());
+            gtag('event', 'view_item', { item_name: name, price: price, currency: 'BYN' });
+            currentTariff = { name, price }; document.getElementById('purchaseModalTitle').innerHTML = `${currentLang === 'ru' ? 'Оформление подписки' : 'Subscription checkout'} ${name}`; document.getElementById('usersCountGroup').style.display = name === 'Team' ? 'block' : 'none'; updateTotalPrice(); document.getElementById('purchaseModal').classList.add('show'); }
         function closePurchaseModal() { document.getElementById('purchaseModal').classList.remove('show'); currentTariff = null; }
         function selectPaymentMethod(method) { selectedPaymentMethod = method; document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('selected')); event.currentTarget.classList.add('selected'); }
         function updateTotalPrice() { if(!currentTariff) return; let total = currentTariff.price || 0; if(currentTariff.name === 'Team') { const users = parseInt(document.getElementById('usersCount').value) || 5; total = currentTariff.price * users; } document.getElementById('totalPrice').innerHTML = currentTariff.price ? `${total} BYN` : (currentLang === 'ru' ? 'По запросу' : 'On request'); }
-        function processPurchase() { showNotification(`${currentLang === 'ru' ? 'Подписка' : 'Subscription'} ${currentTariff.name} ${currentLang === 'ru' ? 'успешно оформлена!' : 'successfully purchased!'}`); closePurchaseModal(); }
+        function processPurchase() {
+            // Событие: успешная покупка / конверсия
+            ym(108984175, 'reachGoal', 'purchase_complete');
+            gtag('event', 'purchase', {
+                transaction_id: 'T_' + Date.now(),
+                value: currentTariff.price || 0,
+                currency: 'BYN',
+                items: [{ item_name: currentTariff.name, price: currentTariff.price }]
+            });
+            showNotification(`${currentLang === 'ru' ? 'Подписка' : 'Subscription'} ${currentTariff.name} ${currentLang === 'ru' ? 'успешно оформлена!' : 'successfully purchased!'}`); closePurchaseModal(); }
         
         function openDemoModal() { document.getElementById('demoModal').classList.add('show'); }
         function closeDemoModal() { document.getElementById('demoModal').classList.remove('show'); }
         function openEnterpriseModal() { document.getElementById('enterpriseModal').classList.add('show'); }
         function closeEnterpriseModal() { document.getElementById('enterpriseModal').classList.remove('show'); }
-        function submitDemoRequest() { showNotification(currentLang === 'ru' ? 'Заявка отправлена! Менеджер свяжется с вами.' : 'Request sent! Manager will contact you.'); closeDemoModal(); return false; }
-        function submitEnterpriseRequest() { showNotification(currentLang === 'ru' ? 'Заявка отправлена! Менеджер свяжется для обсуждения Enterprise-решения.' : 'Request sent! Manager will contact you to discuss Enterprise solution.'); closeEnterpriseModal(); return false; }
+        function submitDemoRequest() {
+            // Событие: отправка заявки на демо
+            ym(108984175, 'reachGoal', 'demo_request');
+            gtag('event', 'generate_lead', { event_category: 'demo', event_label: 'demo_form' });
+            showNotification(currentLang === 'ru' ? 'Заявка отправлена! Менеджер свяжется с вами.' : 'Request sent! Manager will contact you.');
+            closeDemoModal(); return false;
+        }
+        function submitEnterpriseRequest() {
+            // Событие: отправка заявки Enterprise
+            ym(108984175, 'reachGoal', 'enterprise_request');
+            gtag('event', 'generate_lead', { event_category: 'enterprise', event_label: 'enterprise_form' });
+            showNotification(currentLang === 'ru' ? 'Заявка отправлена! Менеджер свяжется для обсуждения Enterprise-решения.' : 'Request sent! Manager will contact you to discuss Enterprise solution.');
+            closeEnterpriseModal(); return false;
+        }
         
         function toggleUserDropdown() { const d = document.getElementById('userDropdown'); if(d) d.classList.toggle('show'); document.addEventListener('click', function close(e) { if(!e.target.closest('.user-profile')) { d.classList.remove('show'); document.removeEventListener('click', close); } }); }
         function showNotification(msg) { const n = document.createElement('div'); n.className = 'notification'; n.innerText = msg; document.body.appendChild(n); setTimeout(() => n.remove(), 3000); }
