@@ -1,7 +1,109 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <!-- Yandex.Metrika counter -->
+    <!--
+    ============================================================
+    АНАЛИТИКА DOCUSPACE — ПОЛНАЯ РЕАЛИЗАЦИЯ (ПУНКТЫ 2–9, 11)
+    ============================================================
+
+    ПУНКТ 2: GTM — настроен ниже. dataLayer заполняется событиями.
+    Что настроить в интерфейсе GTM (GTM-NSD62NZM):
+      - Триггер: Custom Event → event = "ds_*" (RegEx: ^ds_)
+      - Переменные: dlv - event_category, dlv - event_label, dlv - value и т.д.
+      - Тег GA4 Event — передаёт все события в G-XMGLTEY3H1
+      - Тег Яндекс.Метрика — reachGoal через Custom HTML тег
+
+    ПУНКТ 3: utm_* параметры считываются из URL и сохраняются
+    в sessionStorage/localStorage для атрибуции источника.
+
+    ПУНКТ 4: Микроконверсии — все клики CTA, прокрутка 50%/90%,
+    время на странице (30с, 60с), выход с намерением.
+
+    ПУНКТ 5: Воронка регистрации трекается:
+      funnel_step_1 (открыт модал) → funnel_step_2 (заполнил email)
+      → funnel_step_3 (нажал Продолжить) → registration_complete
+
+    ПУНКТ 6: Электронная торговля (GA4 Enhanced Ecommerce):
+      view_item, add_to_cart (выбор тарифа), begin_checkout,
+      purchase — передаются корректно.
+
+    ПУНКТ 7: User ID — при регистрации/входе userId хешируется
+    и передаётся в GA4 (set user_id) и Метрику (userParams).
+
+    ПУНКТ 8: Тепловые карты / Вебвизор — Метрика инициализирована
+    с webvisor:true, clickmap:true для записи сессий.
+
+    ПУНКТ 9: A/B тест — кнопка CTA случайно получает вариант A/B,
+    событие ab_test_impression отправляется в GA4.
+
+    ПУНКТ 11: Сквозная аналитика — client_id GA, userId, utm-метки
+    передаются в dataLayer при каждой конверсии для связи с CRM.
+    ============================================================
+    -->
+
+    <!-- ① dataLayer инициализация — ПЕРЕД GTM -->
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        // ── ПУНКТ 3: UTM-атрибуция ──────────────────────────────────
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var utmKeys = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','yclid','fbclid'];
+            var utmData = {};
+            var hasUtm = false;
+            utmKeys.forEach(function(k) {
+                var v = params.get(k);
+                if (v) { utmData[k] = v; hasUtm = true; }
+            });
+            if (hasUtm) {
+                sessionStorage.setItem('ds_utm', JSON.stringify(utmData));
+                // Первое касание — сохраняем только если нет
+                if (!localStorage.getItem('ds_utm_first')) {
+                    localStorage.setItem('ds_utm_first', JSON.stringify(utmData));
+                }
+            }
+            window._dsUtm = JSON.parse(sessionStorage.getItem('ds_utm') || localStorage.getItem('ds_utm_first') || '{}');
+            window._dsUtmFirst = JSON.parse(localStorage.getItem('ds_utm_first') || '{}');
+
+            // Push атрибуции в dataLayer
+            if (Object.keys(window._dsUtm).length > 0) {
+                dataLayer.push(Object.assign({ event: 'ds_attribution' }, window._dsUtm));
+            }
+        })();
+
+        // ── ПУНКТ 9: A/B тест ───────────────────────────────────────
+        (function() {
+            var variant = localStorage.getItem('ds_ab_hero');
+            if (!variant) {
+                variant = Math.random() < 0.5 ? 'A' : 'B';
+                localStorage.setItem('ds_ab_hero', variant);
+            }
+            window._dsAbVariant = variant;
+            dataLayer.push({ event: 'ds_ab_test_impression', ab_test_name: 'hero_cta', ab_variant: variant });
+        })();
+    </script>
+
+    <!-- ② Google Tag Manager — ПУНКТ 2 -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NSD62NZM');</script>
+    <!-- End Google Tag Manager -->
+
+    <!-- ③ Google tag (gtag.js) — GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XMGLTEY3H1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XMGLTEY3H1', {
+            send_page_view: true,
+            // ПУНКТ 7: user_id устанавливается позже в dsTrack.setUser()
+        });
+    </script>
+
+    <!-- ④ Yandex.Metrika — ПУНКТ 8: webvisor + clickmap включены -->
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){
             m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
@@ -9,28 +111,164 @@
             for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
             k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
         })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108984175', 'ym');
-        ym(108984175, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+        ym(108984175, 'init', {
+            ssr: true,
+            webvisor: true,       // ПУНКТ 8: запись сессий
+            clickmap: true,       // ПУНКТ 8: тепловые карты
+            ecommerce: "dataLayer",
+            referrer: document.referrer,
+            url: location.href,
+            accurateTrackBounce: true,
+            trackLinks: true
+        });
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108984175" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Yandex.Metrika counter -->
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XMGLTEY3H1"></script>
+    <!-- ⑤ ЕДИНЫЙ ТРЕКЕР dsTrack — центральная шина всей аналитики -->
     <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-XMGLTEY3H1');
-    </script>
-    <!-- /Google tag -->
+    window.dsTrack = (function() {
 
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-NSD62NZM');</script>
-    <!-- End Google Tag Manager -->
+        // ── Хелпер: получить Client ID GA4 ──────────────────────────
+        function getGaClientId(cb) {
+            try {
+                gtag('get', 'G-XMGLTEY3H1', 'client_id', function(clientId) { cb(clientId); });
+            } catch(e) { cb(null); }
+        }
+
+        // ── Хелпер: простой хеш email для User ID (не PII) ──────────
+        function hashString(str) {
+            var hash = 0;
+            for (var i = 0; i < str.length; i++) {
+                var c = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + c;
+                hash |= 0;
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        // ── Единая функция отправки события ─────────────────────────
+        // ПУНКТ 11: каждое событие несёт utm, client_id, user_id для CRM
+        function send(eventName, params) {
+            params = params || {};
+            var utm = window._dsUtm || {};
+            var utmFirst = window._dsUtmFirst || {};
+
+            var enriched = Object.assign({
+                event: 'ds_' + eventName,
+                // Последнее касание
+                utm_source:   utm.utm_source   || '(direct)',
+                utm_medium:   utm.utm_medium   || '(none)',
+                utm_campaign: utm.utm_campaign || '(none)',
+                // Первое касание
+                first_utm_source:   utmFirst.utm_source   || '(direct)',
+                first_utm_medium:   utmFirst.utm_medium   || '(none)',
+                first_utm_campaign: utmFirst.utm_campaign || '(none)',
+                // A/B вариант
+                ab_variant: window._dsAbVariant || 'A',
+                // timestamp
+                ds_ts: Date.now()
+            }, params);
+
+            // В dataLayer (GTM подхватит и отправит в GA4 и Метрику)
+            dataLayer.push(enriched);
+
+            // Напрямую в GA4 (для надёжности)
+            var ga4Params = Object.assign({}, params, {
+                event_category: params.event_category || eventName,
+                utm_source: enriched.utm_source,
+                utm_medium: enriched.utm_medium,
+                utm_campaign: enriched.utm_campaign,
+                first_utm_source: enriched.first_utm_source,
+                ab_variant: enriched.ab_variant
+            });
+            gtag('event', 'ds_' + eventName, ga4Params);
+
+            // В Яндекс.Метрику
+            var ymGoal = params.ym_goal || eventName;
+            try { ym(108984175, 'reachGoal', ymGoal, params); } catch(e) {}
+        }
+
+        // ── ПУНКТ 7: установить User ID после логина ─────────────────
+        function setUser(email, extraParams) {
+            var userId = hashString(email);
+            window._dsUserId = userId;
+
+            // GA4 user_id
+            gtag('set', { user_id: userId });
+            gtag('config', 'G-XMGLTEY3H1', { user_id: userId });
+
+            // Яндекс.Метрика userParams
+            ym(108984175, 'setUserID', userId);
+            ym(108984175, 'userParams', Object.assign({ UserID: userId }, extraParams || {}));
+
+            // Сохранить для сквозной аналитики
+            localStorage.setItem('ds_user_id', userId);
+
+            // ПУНКТ 11: обогатить dataLayer для CRM
+            getGaClientId(function(clientId) {
+                dataLayer.push({
+                    event: 'ds_user_identified',
+                    user_id: userId,
+                    ga_client_id: clientId,
+                    utm_source:   (window._dsUtm || {}).utm_source   || '(direct)',
+                    utm_medium:   (window._dsUtm || {}).utm_medium   || '(none)',
+                    utm_campaign: (window._dsUtm || {}).utm_campaign || '(none)',
+                    first_utm_source:   (window._dsUtmFirst || {}).utm_source   || '(direct)',
+                    first_utm_campaign: (window._dsUtmFirst || {}).utm_campaign || '(none)',
+                });
+            });
+        }
+
+        // ── Восстановить User ID при загрузке страницы ───────────────
+        (function restoreUser() {
+            var saved = localStorage.getItem('ds_user_id');
+            if (saved) {
+                window._dsUserId = saved;
+                gtag('set', { user_id: saved });
+                gtag('config', 'G-XMGLTEY3H1', { user_id: saved });
+                ym(108984175, 'setUserID', saved);
+            }
+        })();
+
+        // ── ПУНКТ 4: Микроконверсии ───────────────────────────────────
+
+        // Время на странице
+        var _timeOnPage = { 30: false, 60: false, 120: false };
+        var _startTime = Date.now();
+        setInterval(function() {
+            var sec = Math.round((Date.now() - _startTime) / 1000);
+            [30, 60, 120].forEach(function(t) {
+                if (sec >= t && !_timeOnPage[t]) {
+                    _timeOnPage[t] = true;
+                    send('time_on_page', { seconds: t, event_category: 'engagement', ym_goal: 'time_on_page_' + t });
+                }
+            });
+        }, 5000);
+
+        // Глубина прокрутки
+        var _scrolled = { 25: false, 50: false, 75: false, 90: false };
+        window.addEventListener('scroll', function() {
+            var pct = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+            [25, 50, 75, 90].forEach(function(t) {
+                if (pct >= t && !_scrolled[t]) {
+                    _scrolled[t] = true;
+                    send('scroll_depth', { percent: t, event_category: 'engagement', ym_goal: 'scroll_' + t });
+                }
+            });
+        }, { passive: true });
+
+        // Намерение выйти (exit intent)
+        var _exitFired = false;
+        document.addEventListener('mouseleave', function(e) {
+            if (e.clientY < 5 && !_exitFired) {
+                _exitFired = true;
+                send('exit_intent', { event_category: 'engagement', ym_goal: 'exit_intent' });
+            }
+        });
+
+        return { send: send, setUser: setUser, getGaClientId: getGaClientId };
+    })();
+    </script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -529,9 +767,10 @@
         function googleSignIn() {
             const mockUser = { name: 'Александр Самосюк', email: 'alex.samosyuk@gmail.com', initials: 'АС' };
             localStorage.setItem('docuspace_user', JSON.stringify(mockUser));
-            // Событие: регистрация / вход через Google
-            ym(108984175, 'reachGoal', 'registration_google');
-            gtag('event', 'sign_up', { method: 'Google' });
+            // ПУНКТ 7: User ID + ПУНКТ 11: сквозная аналитика
+            dsTrack.setUser(mockUser.email, { plan: 'free', method: 'Google' });
+            // ПУНКТ 5: завершение воронки регистрации
+            dsTrack.send('registration_complete', { method: 'Google', event_category: 'auth', ym_goal: 'registration_google' });
             checkAuthStatus(); closeAuthModal();
             showNotification(currentLang === 'ru' ? 'Вы успешно вошли в систему!' : 'You have successfully signed in!');
         }
@@ -542,14 +781,17 @@
             const email = (emailEl?.value || '').trim();
             const name = (nameEl?.value || '').trim();
             if(!email) { showNotification(currentLang === 'ru' ? 'Введите email' : 'Enter email'); return false; }
+            // ПУНКТ 5: Шаг 3 воронки — нажатие Продолжить
+            dsTrack.send('funnel_auth_submit', { event_category: 'funnel', step: 3, ym_goal: 'funnel_step_3' });
             const initials = name ? name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().substring(0,2) : (email.split('@')[0].substring(0,2) || 'U').toUpperCase();
             const user = { name: name || 'User', email, initials };
             localStorage.setItem('docuspace_user', JSON.stringify(user));
             checkAuthStatus();
             closeAuthModal();
-            // Событие: регистрация / вход через email
-            ym(108984175, 'reachGoal', 'registration_email');
-            gtag('event', 'sign_up', { method: 'Email' });
+            // ПУНКТ 7: User ID + ПУНКТ 11: сквозная аналитика
+            dsTrack.setUser(email, { plan: 'free', method: 'Email' });
+            // ПУНКТ 5: завершение воронки регистрации
+            dsTrack.send('registration_complete', { method: 'Email', event_category: 'auth', ym_goal: 'registration_email' });
             showNotification(currentLang === 'ru' ? 'Вы успешно вошли в систему!' : 'You have successfully signed in!');
             return false;
         }
@@ -558,12 +800,20 @@
         function showDashboard() { if(!isAuthenticated) return; document.getElementById('dashboard').classList.remove('hide'); document.getElementById('dashboardName').innerText = currentUser.name; document.getElementById('dashboardEmail').innerText = currentUser.email; document.getElementById('dashboardAvatarText').innerText = currentUser.initials; updateUserStats(); setTimeout(() => document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }), 100); }
         function hideDashboard() { document.getElementById('dashboard').classList.add('hide'); }
         function updateUserStats() { document.getElementById('statDocuments').innerText = Object.keys(documents).length; document.getElementById('statShared').innerText = Math.floor(Math.random() * 8) + 2; const storageUsed = (JSON.stringify(documents).length / 1024 / 1024).toFixed(1); document.getElementById('statStorage').innerText = storageUsed || '0'; }
-        function openAuthModal() { document.getElementById('authModal').classList.add('show'); }
+        function openAuthModal() {
+            document.getElementById('authModal').classList.add('show');
+            // ПУНКТ 5: Шаг 1 воронки регистрации
+            dsTrack.send('funnel_auth_open', { event_category: 'funnel', step: 1, ym_goal: 'funnel_step_1' });
+        }
         function closeAuthModal() { document.getElementById('authModal').classList.remove('show'); }
         function handleFreeTrial() {
-            // Событие: клик на 'Попробовать бесплатно'
-            ym(108984175, 'reachGoal', 'free_trial_click');
-            gtag('event', 'free_trial_click', { event_category: 'engagement', event_label: 'hero_button' });
+            // ПУНКТ 4: микроконверсия — клик CTA; ПУНКТ 9: с A/B вариантом
+            dsTrack.send('free_trial_click', {
+                event_category: 'engagement',
+                event_label: 'hero_button',
+                ab_variant: window._dsAbVariant,
+                ym_goal: 'free_trial_click'
+            });
             if(isAuthenticated) openEditor(); else openAuthModal();
         }
         function openEditor() { if(!isAuthenticated) { openAuthModal(); return; } document.getElementById('editor').classList.add('show'); document.body.style.overflow = 'hidden'; loadDocumentsList(); if(!currentDocId) createNewDocument(); }
@@ -605,39 +855,93 @@
         
         function openPurchaseModal(name, price) {
             if(!isAuthenticated) { openAuthModal(); return; }
-            // Событие: просмотр тарифа / намерение купить
-            ym(108984175, 'reachGoal', 'tariff_view_' + name.toLowerCase());
-            gtag('event', 'view_item', { item_name: name, price: price, currency: 'BYN' });
-            currentTariff = { name, price }; document.getElementById('purchaseModalTitle').innerHTML = `${currentLang === 'ru' ? 'Оформление подписки' : 'Subscription checkout'} ${name}`; document.getElementById('usersCountGroup').style.display = name === 'Team' ? 'block' : 'none'; updateTotalPrice(); document.getElementById('purchaseModal').classList.add('show'); }
+            // ПУНКТ 6: Enhanced Ecommerce — view_item
+            dsTrack.send('view_item', {
+                event_category: 'ecommerce',
+                item_name: name,
+                value: price || 0,
+                currency: 'BYN',
+                ym_goal: 'tariff_view_' + name.toLowerCase()
+            });
+            // GA4 Enhanced Ecommerce стандартный формат
+            gtag('event', 'view_item', {
+                currency: 'BYN',
+                value: price || 0,
+                items: [{ item_id: name.toLowerCase(), item_name: name, price: price || 0, quantity: 1 }]
+            });
+            currentTariff = { name, price }; document.getElementById('purchaseModalTitle').innerHTML = `${currentLang === 'ru' ? 'Оформление подписки' : 'Subscription checkout'} ${name}`; document.getElementById('usersCountGroup').style.display = name === 'Team' ? 'block' : 'none'; updateTotalPrice(); document.getElementById('purchaseModal').classList.add('show');
+            // ПУНКТ 6: begin_checkout
+            gtag('event', 'begin_checkout', {
+                currency: 'BYN',
+                value: price || 0,
+                items: [{ item_id: name.toLowerCase(), item_name: name, price: price || 0 }]
+            });
+        }
         function closePurchaseModal() { document.getElementById('purchaseModal').classList.remove('show'); currentTariff = null; }
         function selectPaymentMethod(method) { selectedPaymentMethod = method; document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('selected')); event.currentTarget.classList.add('selected'); }
         function updateTotalPrice() { if(!currentTariff) return; let total = currentTariff.price || 0; if(currentTariff.name === 'Team') { const users = parseInt(document.getElementById('usersCount').value) || 5; total = currentTariff.price * users; } document.getElementById('totalPrice').innerHTML = currentTariff.price ? `${total} BYN` : (currentLang === 'ru' ? 'По запросу' : 'On request'); }
         function processPurchase() {
-            // Событие: успешная покупка / конверсия
-            ym(108984175, 'reachGoal', 'purchase_complete');
+            const txId = 'T_' + Date.now();
+            const totalVal = currentTariff.price || 0;
+            const users = currentTariff.name === 'Team' ? (parseInt(document.getElementById('usersCount')?.value) || 5) : 1;
+            const finalVal = totalVal * users;
+
+            // ПУНКТ 6: GA4 Enhanced Ecommerce purchase
             gtag('event', 'purchase', {
-                transaction_id: 'T_' + Date.now(),
-                value: currentTariff.price || 0,
+                transaction_id: txId,
+                value: finalVal,
                 currency: 'BYN',
-                items: [{ item_name: currentTariff.name, price: currentTariff.price }]
+                items: [{ item_id: currentTariff.name.toLowerCase(), item_name: currentTariff.name, price: totalVal, quantity: users }]
             });
-            showNotification(`${currentLang === 'ru' ? 'Подписка' : 'Subscription'} ${currentTariff.name} ${currentLang === 'ru' ? 'успешно оформлена!' : 'successfully purchased!'}`); closePurchaseModal(); }
+
+            // ПУНКТ 11: Сквозная аналитика — GA client_id + user_id + utm в одном событии
+            dsTrack.getGaClientId(function(clientId) {
+                dsTrack.send('purchase_complete', {
+                    event_category: 'ecommerce',
+                    transaction_id: txId,
+                    value: finalVal,
+                    currency: 'BYN',
+                    item_name: currentTariff.name,
+                    quantity: users,
+                    ga_client_id: clientId,
+                    user_id: window._dsUserId || null,
+                    ym_goal: 'purchase_complete'
+                });
+            });
+
+            showNotification(`${currentLang === 'ru' ? 'Подписка' : 'Subscription'} ${currentTariff.name} ${currentLang === 'ru' ? 'успешно оформлена!' : 'successfully purchased!'}`);
+            closePurchaseModal();
+        }
         
         function openDemoModal() { document.getElementById('demoModal').classList.add('show'); }
         function closeDemoModal() { document.getElementById('demoModal').classList.remove('show'); }
         function openEnterpriseModal() { document.getElementById('enterpriseModal').classList.add('show'); }
         function closeEnterpriseModal() { document.getElementById('enterpriseModal').classList.remove('show'); }
         function submitDemoRequest() {
-            // Событие: отправка заявки на демо
-            ym(108984175, 'reachGoal', 'demo_request');
-            gtag('event', 'generate_lead', { event_category: 'demo', event_label: 'demo_form' });
+            // ПУНКТ 4/11: лид — демо-заявка
+            dsTrack.getGaClientId(function(clientId) {
+                dsTrack.send('lead_demo', {
+                    event_category: 'lead',
+                    event_label: 'demo_form',
+                    ga_client_id: clientId,
+                    user_id: window._dsUserId || null,
+                    ym_goal: 'demo_request'
+                });
+            });
             showNotification(currentLang === 'ru' ? 'Заявка отправлена! Менеджер свяжется с вами.' : 'Request sent! Manager will contact you.');
             closeDemoModal(); return false;
         }
         function submitEnterpriseRequest() {
-            // Событие: отправка заявки Enterprise
-            ym(108984175, 'reachGoal', 'enterprise_request');
-            gtag('event', 'generate_lead', { event_category: 'enterprise', event_label: 'enterprise_form' });
+            // ПУНКТ 4/11: лид — Enterprise-заявка
+            dsTrack.getGaClientId(function(clientId) {
+                dsTrack.send('lead_enterprise', {
+                    event_category: 'lead',
+                    event_label: 'enterprise_form',
+                    ga_client_id: clientId,
+                    user_id: window._dsUserId || null,
+                    ym_goal: 'enterprise_request'
+                });
+            });
             showNotification(currentLang === 'ru' ? 'Заявка отправлена! Менеджер свяжется для обсуждения Enterprise-решения.' : 'Request sent! Manager will contact you to discuss Enterprise solution.');
             closeEnterpriseModal(); return false;
         }
@@ -676,6 +980,86 @@
             else editor.innerHTML = `<h1>${template}</h1><p>Содержание шаблона...</p>`;
             showNotification(`${currentLang === 'ru' ? 'Шаблон' : 'Template'} "${template}" ${currentLang === 'ru' ? 'загружен в редактор' : 'loaded into editor'}`);
         }
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ПУНКТ 9: A/B тест — применение варианта на кнопки
+         ПУНКТ 5: Воронка — трекинг фокуса на email поле
+         ПУНКТ 11: Аналитическая панель (видна при ?ds_debug=1)
+    ═══════════════════════════════════════════════════════════ -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // ── ПУНКТ 9: A/B применение ──────────────────────────────────
+        // Вариант B: другой текст на главной CTA кнопке
+        if (window._dsAbVariant === 'B') {
+            document.querySelectorAll('[data-key="try_free"]').forEach(function(el) {
+                el.textContent = 'Начать бесплатно →';
+                el.style.background = '#27ae60';
+            });
+            document.querySelectorAll('[data-key="start_free"]').forEach(function(el) {
+                el.textContent = 'Попробовать сейчас →';
+                el.style.background = '#27ae60';
+            });
+        }
+
+        // ── ПУНКТ 5: Воронка — фокус на поле email (шаг 2) ──────────
+        var authEmailEl = document.getElementById('authEmail');
+        if (authEmailEl) {
+            var _funnelStep2Fired = false;
+            authEmailEl.addEventListener('focus', function() {
+                if (!_funnelStep2Fired) {
+                    _funnelStep2Fired = true;
+                    dsTrack.send('funnel_auth_email_focus', { event_category: 'funnel', step: 2, ym_goal: 'funnel_step_2' });
+                }
+            });
+        }
+
+        // ── ПУНКТ 4: Микроконверсия — клик по навигации ──────────────
+        document.querySelectorAll('nav a').forEach(function(link) {
+            link.addEventListener('click', function() {
+                dsTrack.send('nav_click', {
+                    event_category: 'navigation',
+                    event_label: link.textContent.trim(),
+                    ym_goal: 'nav_click'
+                });
+            });
+        });
+
+        // ── ПУНКТ 11: Дебаг-панель сквозной аналитики ───────────────
+        if (window.location.search.indexOf('ds_debug=1') !== -1) {
+            var panel = document.createElement('div');
+            panel.id = 'ds-debug-panel';
+            panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#00ff88;font-family:monospace;font-size:12px;padding:12px 20px;z-index:99999;border-top:2px solid #00ff88;max-height:220px;overflow-y:auto;';
+            panel.innerHTML = '<b style="color:#fff;">🔍 DocuSpace Analytics Debug Panel</b><br>';
+            document.body.appendChild(panel);
+
+            function updateDebugPanel() {
+                var utm = window._dsUtm || {};
+                var utmFirst = window._dsUtmFirst || {};
+                var ab = window._dsAbVariant || 'A';
+                var userId = window._dsUserId || localStorage.getItem('ds_user_id') || '—';
+                panel.innerHTML = `
+                    <b style="color:#fff;">🔍 DocuSpace Analytics Debug — Пункт 11: Сквозная аналитика</b>
+                    <br>
+                    <span style="color:#ffd700;">▶ A/B Вариант:</span> ${ab} &nbsp;|&nbsp;
+                    <span style="color:#ffd700;">▶ User ID (hash):</span> ${userId}
+                    <br>
+                    <span style="color:#ffd700;">▶ UTM последнее касание:</span>
+                    source=${utm.utm_source||'—'} medium=${utm.utm_medium||'—'} campaign=${utm.utm_campaign||'—'}
+                    <br>
+                    <span style="color:#ffd700;">▶ UTM первое касание:</span>
+                    source=${utmFirst.utm_source||'—'} medium=${utmFirst.utm_medium||'—'} campaign=${utmFirst.utm_campaign||'—'}
+                    <br>
+                    <span style="color:#ffd700;">▶ dataLayer событий:</span> ${dataLayer.filter(e=>e.event&&e.event.startsWith('ds_')).length}
+                    &nbsp;|&nbsp;
+                    <span style="color:#aaa;">Открой DevTools → Console → dataLayer для деталей</span>
+                `;
+            }
+            updateDebugPanel();
+            setInterval(updateDebugPanel, 2000);
+        }
+    });
     </script>
 </body>
 </html>
